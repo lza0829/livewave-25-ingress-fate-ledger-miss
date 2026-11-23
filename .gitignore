@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 运行数据（SQLite/WAL）
+backend/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Node / 前端
+node_modules/
+frontend/dist/
+
+# 临时
+/tmp/
+*.log
