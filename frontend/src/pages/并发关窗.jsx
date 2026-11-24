@@ -59,6 +59,27 @@ export default function 并发关窗页() {
             </tbody>
           </table>
 
+          <div className="段题" style={{ marginTop: 10 }}>命运码现场（入流命运账·硬路由）</div>
+          <table>
+            <thead>
+              <tr><th>事件编号</th><th>命运码</th><th>冲突世代</th><th>账号</th><th>票号</th></tr>
+            </thead>
+            <tbody>
+              {Object.entries(房.命运码现场 || {}).map(([编号, d]) => (
+                <tr key={编号}>
+                  <td className="码">{编号}</td>
+                  <td>
+                    <span className={`徽章 ${d.命运码 === "已入" ? "通" : d.命运码 === "未入" ? "败" : "次"}`}>
+                      {d.命运码}
+                    </span>
+                  </td>
+                  <td>{d.冲突世代}</td><td>{d.账号 || "—"}</td>
+                  <td className="码">{d.票号 || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
           <div className="段题" style={{ marginTop: 10 }}>事件命运（冲突回滚 vs 合法入窗可区分）</div>
           <table>
             <thead><tr><th>事件编号</th><th>命运</th><th>已入库</th></tr></thead>

@@ -10,6 +10,7 @@ from app.services import 装载, 贯验, 目录, 热度窗, 并发只读
 
 class 装载请求(BaseModel):
     批次编号: str = ""
+    账号: str = ""
     事件: list = Field(default_factory=list)
 
 
@@ -192,12 +193,18 @@ from app.modules import 入流命运账 as 命
 
 
 @路由.get("/核证/入流命运")
-def 取入流命运(事件编号: str | None = None):
+def 取入流命运(事件编号: str | None = None, 房间键: str = ""):
     conn = 连接()
     try:
-        return 命.查命运(conn, 事件编号)
+        return 命.查命运(conn, 事件编号, 房间键)
     finally:
         conn.close()
+
+
+@路由.get("/入流命运核证")
+def 取入流命运核证(事件编号: str | None = None, 房间键: str = ""):
+    """只读核证别名：与 /核证/入流命运 同口径（命运码硬路由 + 三禁止自检）。"""
+    return 取入流命运(事件编号, 房间键)
 
 def _alias_payload(payload: dict) -> dict:
     out = dict(payload or {})

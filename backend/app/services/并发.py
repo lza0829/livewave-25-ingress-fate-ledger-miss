@@ -72,6 +72,32 @@ def _测试重置() -> None:
     持票回调.clear()
 
 
+class 房串行锁:
+    """仅取得同房串行票的进程内锁（不开关窗并发账）。
+
+    供票外补记（如冲突回滚后补写入流命运账）使用：保证补记与同房其它票
+    互斥；跨进程由调用方在锁内用 BEGIN IMMEDIATE 串行化写。
+    """
+
+    def __init__(self, 房间键: str, 超时秒: float | None = None):
+        self.房间键 = 房间键
+        self.超时秒 = 抢票超时秒 if 超时秒 is None else 超时秒
+        self._lk = _房锁取(房间键)
+        self._持锁 = False
+
+    def __enter__(self):
+        if not self._lk.acquire(timeout=self.超时秒):
+            raise 冲突异常("同房串行锁抢锁超时")
+        self._持锁 = True
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        if self._持锁:
+            self._lk.release()
+            self._持锁 = False
+        return False
+
+
 def 新票号(动作: str, 房间键: str) -> str:
     return f"票-{动作}-{房间键}-{uuid.uuid4().hex[:12]}"
 
@@ -99,16 +125,27 @@ class 票囊:
         self.关窗数 = 0
         self.撤回数 = 0
         self.入流数 = 0
+        self.幂等跳过数 = 0
+        self.命运账写数 = 0
         self.明细: list[dict] = []
         self.事件命运: list[dict] = []
         self.冲突来源 = ""
 
-    def 记命运(self, 事件编号: str, 命运: str, 窗键: str = "") -> None:
-        self.事件命运.append({"事件编号": 事件编号, "命运": 命运, "窗键": 窗键})
+    def 记命运(self, 事件编号: str, 命运: str, 窗键: str = "",
+               命运码: str = "", 账号: str = "") -> None:
+        """票内记录事件命运；票成功提交后由入流命运账同票落账（命运码硬路由）。"""
+        self.事件命运.append({
+            "事件编号": 事件编号, "命运": 命运, "窗键": 窗键,
+            "命运码": 命运码, "账号": 账号,
+        })
 
     def 补录命运(self, 明细: list[dict]) -> None:
-        """抢锁失败时票内未及记录命运，由调用方在确认整票回滚后补录到台账。"""
-        self.事件命运.extend(明细)
+        """抢锁失败 / 票内失败时，以整票回滚明细覆盖票内命运，并刷新台账无效票。
+
+        业务票已整票回滚，票内先前记录的「已入窗」等命运不再成立，
+        故以调用方给出的整票明细覆盖，保证无效票留痕与事实一致。
+        """
+        self.事件命运 = list(明细)
         票 = {
             "票号": self.票号, "房间键": self.房间键, "动作": self.动作,
             "批次编号": self.批次编号, "票时刻": 此刻(), "是否有效": 0,

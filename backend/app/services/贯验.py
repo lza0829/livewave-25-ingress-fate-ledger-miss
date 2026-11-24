@@ -39,13 +39,26 @@ def 跑贯验() -> dict:
         if 脏旁路:
             问题.append(f"旁路事件仍挂窗键:{脏旁路}")
 
-        
-        
-        
-        
-        import json as _json
+        # 入流命运账三禁止（与入流/关窗/旁路匣/窗互证协同）
+        from app.modules import 入流命运账 as 命运账
+
+        核 = 命运账.查命运(conn)
+        问题.extend(核["问题"])
+
+        # 禁止：冲突处置成功（有效入流票）命运账空
+        已入票 = {
+            r["票号"]
+            for r in conn.execute(
+                "SELECT DISTINCT 票号 FROM 入流命运账 WHERE 票号!=''"
+            )
+        }
         账 = 台账连接()
         try:
+            for 票 in 账.execute(
+                "SELECT 票号 FROM 关窗并发账 WHERE 是否有效=1 AND 动作='入流'"
+            ):
+                if 票["票号"] not in 已入票:
+                    问题.append(f"冲突处置成功票{票['票号']}命运账空")
             for 票 in 账.execute("SELECT * FROM 关窗并发账 WHERE 是否有效=0"):
                 if 票["关窗数"] or 票["入窗数"] or 票["旁路数"]:
                     问题.append(

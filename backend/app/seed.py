@@ -10,7 +10,18 @@ CREATE TABLE IF NOT EXISTS 入流命运账 (
   冲突世代 INTEGER NOT NULL DEFAULT 0,
   命运码 TEXT NOT NULL DEFAULT '',
   账号 TEXT NOT NULL DEFAULT '',
-  时刻 TEXT NOT NULL DEFAULT ''
+  时刻 TEXT NOT NULL DEFAULT '',
+  票号 TEXT NOT NULL DEFAULT '',
+  批次编号 TEXT NOT NULL DEFAULT '',
+  窗键 TEXT NOT NULL DEFAULT '',
+  备注 TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS 入流命运账_事件编号 ON 入流命运账(事件编号, 编号);
+
+CREATE TABLE IF NOT EXISTS 冲突世代 (
+  房间键 TEXT PRIMARY KEY,
+  世代 INTEGER NOT NULL DEFAULT 0,
+  更新处理时 TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS 站规 (
@@ -127,14 +138,18 @@ def 初始化库() -> None:
             "旁路条件": "水位>=窗止+允许迟到",
             "关窗并发口径": "架构甲-冲突整票回滚：同房入流/关窗抢同一串行票，冲突即整票回滚到冲突前，事件不入窗、水位窗态不动，可整票重试",
             "冲突事件命运": "冲突票事件不入互动事件、不抬水位；仅入关窗并发账为无效票；重试成功才入窗或走合法迟到/旁路",
+            "命运账口径": "架构甲·命运码硬路由：冲突处置成功须同票写入流命运账（房间/事件编号/冲突世代/命运码/账号），重推与旁路一律按命运码路由",
+            "命运码": "未入=未落窗（重推当全新入流）；已入=已落窗（重推幂等跳过，不得双加）；旁路=仅旁路入口",
             "骨架": "互动事件入流→事件时间水位线推进→热度窗关闭发射→迟到修正撤回→窗输出与撤回互证",
         }.items():
             conn.execute("INSERT INTO 站规(键, 值) VALUES (?, ?)", (k, v))
-    
+
     既有键 = {r["键"] for r in conn.execute("SELECT 键 FROM 站规")}
     for k, v in {
         "关窗并发口径": "架构甲-冲突整票回滚：同房入流/关窗抢同一串行票，冲突即整票回滚到冲突前，事件不入窗、水位窗态不动，可整票重试",
         "冲突事件命运": "冲突票事件不入互动事件、不抬水位；仅入关窗并发账为无效票；重试成功才入窗或走合法迟到/旁路",
+        "命运账口径": "架构甲·命运码硬路由：冲突处置成功须同票写入流命运账（房间/事件编号/冲突世代/命运码/账号），重推与旁路一律按命运码路由",
+        "命运码": "未入=未落窗（重推当全新入流）；已入=已落窗（重推幂等跳过，不得双加）；旁路=仅旁路入口",
     }.items():
         if k not in 既有键:
             conn.execute("INSERT INTO 站规(键, 值) VALUES (?, ?)", (k, v))
